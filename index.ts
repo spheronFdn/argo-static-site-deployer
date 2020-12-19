@@ -1,6 +1,7 @@
 import Arweave from "arweave";
-import Transactions from "arweave/node/transactions";
+import Transaction from "arweave/node/lib/transaction";
 import fs from "fs";
+import { JWKInterface } from "arweave/node/lib/wallet";
 
 const client = new Arweave({
   host: "arweave.net",
@@ -9,7 +10,7 @@ const client = new Arweave({
 });
 
 const files: { slug: string; id: string; data: string }[] = [];
-const txs: Transactions[] = [];
+const txs: Transaction[] = [];
 
 const getHtmlFiles = async (dir: string, subdir?: string) => {
   const _ = fs.readdirSync(subdir || dir);
@@ -24,7 +25,7 @@ const getHtmlFiles = async (dir: string, subdir?: string) => {
         else slug = (subdir || dir) + "/" + file.split(".html")[0];
         slug = slug.split(dir)[1];
         if (slug.startsWith("/")) slug = slug.slice(1, slug.length);
-        
+
         files.push({
           slug,
           id: "",
@@ -35,7 +36,33 @@ const getHtmlFiles = async (dir: string, subdir?: string) => {
   }
 };
 
+const injectAssets = async () => {
+  // TODO
+};
+
+const createTxs = async (jwk: JWKInterface) => {
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i];
+
+    const tx = await client.createTransaction(
+      {
+        data: file.data,
+      },
+      jwk
+    );
+    await client.transactions.sign(tx, jwk);
+
+    txs.push(tx);
+    files[i].id = tx.id;
+  }
+};
+
 (async () => {
   await getHtmlFiles("./out");
-  console.log(files);
+  const jwk = JSON.parse((await fs.readFileSync("arweave.json")).toString());
+  await createTxs(jwk);
+
+  for (const file of files) {
+    console.log(file.slug, file.id);
+  }
 })();
