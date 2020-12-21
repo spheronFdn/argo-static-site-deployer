@@ -24,7 +24,6 @@ const getHtmlFiles = async (dir: string, subdir?: string) => {
         if (file === "index.html") slug = (subdir || dir) + "/";
         else slug = (subdir || dir) + "/" + file.split(".html")[0];
         slug = slug.split(dir)[1];
-        if (slug.startsWith("/")) slug = slug.slice(1, slug.length);
 
         files.push({
           slug,
@@ -50,6 +49,7 @@ const createTxs = async (jwk: JWKInterface) => {
       },
       jwk
     );
+    tx.addTag("Content-Type", "text/html");
     await client.transactions.sign(tx, jwk);
 
     txs.push(tx);
@@ -62,7 +62,38 @@ const createTxs = async (jwk: JWKInterface) => {
   const jwk = JSON.parse((await fs.readFileSync("arweave.json")).toString());
   await createTxs(jwk);
 
-  for (const file of files) {
-    console.log(file.slug, file.id);
+  let data = {
+    manifest: "arweave/paths",
+    version: "0.1.0",
+    index: {},
+    paths: {},
+    items: txs,
+  };
+  const index = files.find((file) => file.slug === "/");
+  if (index) {
+    data.index = { path: "/" };
   }
+  for (const file of files) {
+    data.paths = {
+      ...data.paths,
+      [file.slug]: {
+        id: file.id,
+      },
+    };
+  }
+
+  const tx = await client.createTransaction(
+    {
+      data: JSON.stringify(data),
+    },
+    jwk
+  );
+  tx.addTag("Bundle-Format", "json");
+  tx.addTag("Bundle-Version", "1.0.0");
+  tx.addTag("Content-Type", "application/x.arweave-manifest+json");
+
+  await client.transactions.sign(tx, jwk);
+  await client.transactions.post(tx);
+
+  console.log(tx.id);
 })();
