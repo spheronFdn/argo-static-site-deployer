@@ -1,8 +1,6 @@
 import Arweave from "arweave";
-import Transaction from "arweave/node/lib/transaction";
 import fs from "fs";
 import { JWKInterface } from "arweave/node/lib/wallet";
-import cliProgress from "cli-progress";
 
 const client = new Arweave({
   host: "arweave.net",
@@ -10,8 +8,7 @@ const client = new Arweave({
   protocol: "https",
 });
 
-const files: { slug: string; id: string; data: string }[] = [];
-const txs: Transaction[] = [];
+const files: { slug: string; id: string; cost: number; data: string }[] = [];
 
 const getFiles = async (dir: string, subdir?: string) => {
   const _ = fs.readdirSync(subdir || dir);
@@ -26,6 +23,7 @@ const getFiles = async (dir: string, subdir?: string) => {
       files.push({
         slug,
         id: "",
+        cost: 0,
         data: (await fs.readFileSync(path)).toString(),
       });
     }
@@ -33,12 +31,6 @@ const getFiles = async (dir: string, subdir?: string) => {
 };
 
 const createTxs = async (jwk: JWKInterface) => {
-  const prog = new cliProgress.SingleBar(
-    {},
-    cliProgress.Presets.shades_classic
-  );
-  prog.start(files.length - 1, 0);
-
   for (let i = 0; i < files.length; i++) {
     const file = files[i];
 
@@ -59,17 +51,16 @@ const createTxs = async (jwk: JWKInterface) => {
     await client.transactions.post(tx);
 
     files[i].id = tx.id;
-
-    prog.update(i);
+    files[i].cost = parseFloat(client.ar.winstonToAr(tx.reward));
   }
-
-  prog.stop();
 };
 
 (async () => {
   await getFiles("./out");
   const jwk = JSON.parse((await fs.readFileSync("arweave.json")).toString());
   await createTxs(jwk);
+
+  let totalCost = 0;
 
   let data = {
     manifest: "arweave/paths",
@@ -88,6 +79,7 @@ const createTxs = async (jwk: JWKInterface) => {
         id: file.id,
       },
     };
+    totalCost += file.cost;
   }
 
   const tx = await client.createTransaction(
@@ -101,5 +93,8 @@ const createTxs = async (jwk: JWKInterface) => {
   await client.transactions.sign(tx, jwk);
   await client.transactions.post(tx);
 
+  totalCost += parseFloat(client.ar.winstonToAr(tx.reward));
+
   console.log(tx.id);
+  console.log(totalCost);
 })();
