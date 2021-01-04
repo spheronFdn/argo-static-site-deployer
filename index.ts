@@ -19,6 +19,7 @@ const getFiles = async (dir: string, subdir?: string) => {
     } else {
       let slug = path.split(dir)[1].split(".html")[0];
       if (slug.startsWith("/")) slug = slug.substr(1);
+      if (slug.endsWith("/index")) slug = slug.substr(0, slug.length - 6);
 
       files.push({
         slug,
