@@ -1,7 +1,8 @@
 {
   "scripts": {
     "start": "tsc index.ts --esModuleInterop true --outDir dist && node dist/index.js",
-    "fmt": "prettier --write ."
+    "fmt": "prettier --write .",
+    "build": "tsc index.ts --esModuleInterop true --outDir dist"
   },
   "dependencies": {
     "arweave": "^1.10.0",

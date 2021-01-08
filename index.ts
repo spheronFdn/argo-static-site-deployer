@@ -81,8 +81,9 @@ const createTxs = async (jwk: JWKInterface) => {
 };
 
 (async () => {
-  await getFiles("./out");
-  const jwk = JSON.parse((await fs.readFileSync("arweave.json")).toString());
+  console.log(process.argv[2], process.argv[3]);
+  await getFiles(process.argv[2]);
+  const jwk = JSON.parse(fs.readFileSync(process.argv[3]).toString());
   await createTxs(jwk);
 
   let totalCost = 0,
