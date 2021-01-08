@@ -81,7 +81,6 @@ const createTxs = async (jwk: JWKInterface) => {
 };
 
 (async () => {
-  console.log(process.argv[2], process.argv[3]);
   await getFiles(process.argv[2]);
   const jwk = JSON.parse(fs.readFileSync(process.argv[3]).toString());
   await createTxs(jwk);
