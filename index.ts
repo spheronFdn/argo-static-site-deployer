@@ -1,7 +1,8 @@
 import Arweave from "arweave";
+import Transaction from "arweave/node/lib/transaction";
 import fs from "fs";
 import { JWKInterface } from "arweave/node/lib/wallet";
-import Transaction from "arweave/node/lib/transaction";
+import mime from "mime-types";
 import cliProgress from "cli-progress";
 
 const client = new Arweave({
@@ -60,11 +61,7 @@ const createTxs = async (jwk: JWKInterface) => {
       jwk
     );
 
-    if (file.slug.split(".").length === 1)
-      tx.addTag("Content-Type", "text/html");
-
-    if (file.slug.endsWith(".css")) tx.addTag("Content-Type", "text/css");
-    if (file.slug.endsWith(".png")) tx.addTag("Content-Type", "image/png");
+    tx.addTag("Content-Type", mime.lookup(file.path));
 
     await client.transactions.sign(tx, jwk);
     txs.push(tx);
