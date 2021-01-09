@@ -16,7 +16,7 @@ const files: {
   id: string;
   cost: number;
   size: number;
-  data: string;
+  data: Buffer;
 }[] = [];
 const txs: Transaction[] = [];
 
@@ -40,7 +40,7 @@ const getFiles = async (dir: string, subdir?: string) => {
         id: "",
         cost: 0,
         size: fs.statSync(path).size,
-        data: (await fs.readFileSync(path)).toString(),
+        data: await fs.readFileSync(path),
       });
     }
   }
