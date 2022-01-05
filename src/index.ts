@@ -4,11 +4,12 @@ import fs from "fs";
 import { JWKInterface } from "arweave/node/lib/wallet";
 import mime from "mime-types";
 import cliProgress from "cli-progress";
+import config from "./config";
 
 const client = new Arweave({
-  host: "arweave.net",
-  port: 443,
-  protocol: "https",
+  host: config.host,
+  port: config.port,
+  protocol: config.protocol,
 });
 
 const files: {
@@ -33,16 +34,26 @@ const getFiles = async (dir: string, subdir?: string) => {
       if (slug.startsWith("/")) slug = slug.substr(1);
       if (slug.endsWith("/index")) slug = slug.substr(0, slug.length - 6);
 
-      files.push({
-        slug,
-        path: path.split(dir)[1].startsWith("/")
-          ? path.split(dir)[1].substr(1)
-          : path.split(dir)[1],
-        id: "",
-        cost: 0,
-        size: fs.statSync(path).size,
-        data: await fs.readFileSync(path),
-      });
+      const filePath = path.split(dir)[1].startsWith("/")
+        ? path.split(dir)[1].substr(1)
+        : path.split(dir)[1];
+      if (
+        !(
+          filePath.startsWith(".git") ||
+          filePath.startsWith(".DS_Store") ||
+          filePath.indexOf("README") !== -1 ||
+          filePath.indexOf("LICENSE") !== -1
+        )
+      ) {
+        files.push({
+          slug,
+          path: filePath,
+          id: "",
+          cost: 0,
+          size: fs.statSync(path).size,
+          data: fs.readFileSync(path),
+        });
+      }
     }
   }
 };
@@ -60,8 +71,8 @@ const createTxs = async (jwk: JWKInterface) => {
       },
       jwk
     );
-
-    tx.addTag("Content-Type", mime.lookup(file.path));
+    tx.addTag("App-Name", `ArGoApp/2.0.0`);
+    tx.addTag("Content-Type", mime.lookup(file.path) || "text/plain");
 
     await client.transactions.sign(tx, jwk);
     txs.push(tx);
@@ -144,7 +155,10 @@ const createTxs = async (jwk: JWKInterface) => {
   );
   prog.start(txs.length, 1);
   for (let i = 0; i < txs.length; i++) {
-    await client.transactions.post(txs[i]);
+    let uploader = await client.transactions.getUploader(txs[i]);
+    while (!uploader.isComplete) {
+      await uploader.uploadChunk();
+    }
     prog.update(i + 1);
   }
   prog.stop();
